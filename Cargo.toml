@@ -1,0 +1,12 @@
+[package]
+name = "image-debug-utils"
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+
+[dependencies]
+image = "0.25"
+imageproc = "0.26"
+palette = { version = "0.7", default-features = false, features = ["std"] }
+num-traits = "0.2"
+num = "0.4"
