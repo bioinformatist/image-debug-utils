@@ -76,20 +76,29 @@ where
 ///
 /// # Panics
 ///
+/// # Type Parameters
+///
+/// * `T`: The numeric type of the point coordinates. Must implement `Num`, `Copy`, `AsPrimitive<f32>`,
+///   and be compatible with `min_area_rect`.
+///
+/// # Panics
+///
 /// Panics if `max_aspect_ratio` is not a positive finite number.
-pub fn remove_hypotenuse_in_place(
-    contours: &mut Vec<Contour<i32>>,
+pub fn remove_hypotenuse_in_place<T>(
+    contours: &mut Vec<Contour<T>>,
     max_aspect_ratio: f32,
     border_type: Option<BorderType>,
-) {
+) where
+    T: Num + NumCast + Copy + PartialEq + Eq + Ord + AsPrimitive<f32>,
+{
     assert!(
         max_aspect_ratio.is_finite() && max_aspect_ratio > 0.0,
         "max_aspect_ratio must be a positive finite number"
     );
 
-    let distance_squared = |p1: Point<i32>, p2: Point<i32>| -> f32 {
-        let dx = (p1.x - p2.x) as f32;
-        let dy = (p1.y - p2.y) as f32;
+    let distance_squared = |p1: Point<T>, p2: Point<T>| -> f32 {
+        let dx: f32 = p1.x.as_() - p2.x.as_();
+        let dy: f32 = p1.y.as_() - p2.y.as_();
         dx * dx + dy * dy
     };
 
@@ -141,12 +150,12 @@ pub fn remove_hypotenuse_in_place(
 ///
 /// # Returns
 ///
-/// A `Vec<(Contour<i32>, usize)>` where each tuple contains a contour moved from the input
+/// A `Vec<(Contour<T>, usize)>` where each tuple contains a contour moved from the input
 /// and its direct child count. The vector is sorted in descending order based on the count.
 ///
-pub fn sort_by_direct_children_count_owned(
-    contours: Vec<Contour<i32>>,
-) -> Vec<(Contour<i32>, usize)> {
+pub fn sort_by_direct_children_count_owned<T>(
+    contours: Vec<Contour<T>>,
+) -> Vec<(Contour<T>, usize)> {
     if contours.is_empty() {
         return Vec::new();
     }
@@ -161,7 +170,7 @@ pub fn sort_by_direct_children_count_owned(
         }
     }
 
-    let mut result: Vec<(Contour<i32>, usize)> = contours
+    let mut result: Vec<(Contour<T>, usize)> = contours
         .into_iter()
         .enumerate()
         .map(|(i, contour)| (contour, child_counts[i]))
