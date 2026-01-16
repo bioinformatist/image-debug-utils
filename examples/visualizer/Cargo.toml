@@ -1,0 +1,24 @@
+[package]
+name = "visualizer"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+image-debug-utils = { path = "../../" }
+iced = { version = "0.14.0", features = ["image", "webgl", "fira-sans", "canvas", "svg"] }
+reqwest = { version = "0.13.1", features = ["json"] }
+image = "0.25"
+imageproc = "0.26"
+
+# We need these for wasm build usually
+console_error_panic_hook = "0.1"
+console_log = "1.0"
+log = "0.4"
+rand = "0.8"
+getrandom = { version = "0.2", features = ["js"] }
+web-sys = { version = "0.3.83", features = ["Window"] }
+lucide-icons = { version = "0.562.0", features = ["iced"] }
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+reqwest = { version = "0.13.1", features = ["blocking", "json"] }
+tokio = { version = "1.49.0", features = ["full"] }
