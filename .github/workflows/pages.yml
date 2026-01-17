@@ -2,7 +2,7 @@ name: Build and Deploy to Pages
 
 on:
   push:
-    branches: ["main"]
+    branches: ["main", "feature/enhance-visualizer"]
   workflow_dispatch:
 
 permissions:
@@ -33,13 +33,13 @@ jobs:
       - name: Build WASM
         # Build the 'visualizer' example using the index.html we created
         run: |
-          cd examples/visualizer-app
+          cd examples/visualizer
           trunk build --release --public-url /image-debug-utils/
           
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: examples/visualizer-app/dist
+          path: examples/visualizer/dist
 
   deploy:
     environment:
