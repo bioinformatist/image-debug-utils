@@ -39,7 +39,7 @@ jobs:
         # Build the 'visualizer' example using the index.html we created
         run: |
           cd examples/visualizer
-          trunk build --release --public-url /image-debug-utils/
+          trunk build --release --public-url /
           
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
