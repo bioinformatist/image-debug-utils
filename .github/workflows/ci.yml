@@ -39,7 +39,7 @@ jobs:
           tool: cargo-tarpaulin
 
       - name: Generate Code Coverage
-        run: cargo tarpaulin --verbose --all-features --workspace --timeout 120 --out Xml
+        run: cargo tarpaulin --verbose --all-features --workspace --timeout 120 --out Xml --engine Llvm
 
       - name: Upload to Codecov
         uses: codecov/codecov-action@v5
