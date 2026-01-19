@@ -134,4 +134,16 @@ mod tests {
 
         assert_eq!(result_image, expected_image);
     }
+
+    #[test]
+    fn test_draw_principal_connected_components_empty() {
+        // All background image.
+        let labelled_image = ImageBuffer::<Luma<u32>, Vec<u32>>::new(5, 5);
+        let background = Rgba([255, 255, 255, 255]);
+
+        // n = 0
+        let result = draw_principal_connected_components(&labelled_image, 0, background);
+        assert_eq!(result.dimensions(), (5, 5));
+        assert!(result.pixels().all(|p| *p == background));
+    }
 }

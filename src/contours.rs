@@ -372,6 +372,21 @@ mod tests {
             contours5.is_empty(),
             "Should filter out the high-ratio contour"
         );
+
+        // --- Test Case 6: Degenerate contour (0-area) ---
+        let degenerate_contour_4pts = Contour {
+            points: vec![
+                Point::new(0, 0),
+                Point::new(0, 0),
+                Point::new(1, 0),
+                Point::new(1, 0),
+            ],
+            border_type: BorderType::Outer,
+            parent: None,
+        };
+        let mut contours6 = vec![degenerate_contour_4pts];
+        remove_hypotenuse_in_place(&mut contours6, 5.0, None);
+        assert!(contours6.is_empty(), "0-area contour should be removed");
     }
 
     #[test]
@@ -410,6 +425,26 @@ mod tests {
 
         // The remaining must have 0 children.
         assert!(result[3..].iter().all(|(_, count)| *count == 0));
+    }
+
+    #[test]
+    fn test_sort_by_direct_children_count_empty() {
+        let contours: Vec<Contour<i32>> = Vec::new();
+        let result = sort_by_direct_children_count_owned(contours);
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn test_sort_by_direct_children_count_malformed_hierarchy() {
+        // Hierarchy with invalid parent index (out of bounds)
+        let contours = vec![Contour {
+            parent: Some(99), // Invalid index
+            border_type: BorderType::Outer,
+            points: vec![Point::new(1, 1)],
+        }];
+        let result = sort_by_direct_children_count_owned(contours);
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].1, 0); // Invalid parent index should be ignored
     }
 
     #[test]
