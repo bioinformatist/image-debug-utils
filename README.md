@@ -3,6 +3,7 @@
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/bioinformatist/image-debug-utils)
 [![Rust CI](https://github.com/bioinformatist/image-debug-utils/actions/workflows/ci.yml/badge.svg)](https://github.com/bioinformatist/image-debug-utils/actions/workflows/ci.yml)
 [![Build and Deploy to Pages](https://github.com/bioinformatist/image-debug-utils/actions/workflows/pages.yml/badge.svg)](https://github.com/bioinformatist/image-debug-utils/actions/workflows/pages.yml)
+[![codecov](https://codecov.io/gh/bioinformatist/image-debug-utils/graph/badge.svg?token=23U4M79DJH)](https://codecov.io/gh/bioinformatist/image-debug-utils)
 
 Some niche but useful utilities for [`imageproc`](https://github.com/image-rs/imageproc).
 
