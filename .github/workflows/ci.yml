@@ -32,3 +32,17 @@ jobs:
 
       - name: Run Tests
         run: cargo test --all-features
+
+      - name: Install cargo-tarpaulin
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-tarpaulin
+
+      - name: Generate Code Coverage
+        run: cargo tarpaulin --verbose --all-features --workspace --timeout 120 --out Xml
+
+      - name: Upload to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: false
