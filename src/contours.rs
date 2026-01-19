@@ -1,3 +1,8 @@
+//! Specialized utilities for working with contours found by [`imageproc::contours`].
+//!
+//! This module provides functions for filtering, sorting, and analyzing the hierarchy of
+//! contours, complementing the core functionality in `imageproc`.
+
 use imageproc::{
     contours::{BorderType, Contour},
     geometry::min_area_rect,
@@ -30,6 +35,32 @@ use num_traits::AsPrimitive;
 ///
 /// A `Vec<(Contour<T>, f64)>` sorted by the perimeter in descending order.
 /// Contours with 0 or 1 point will have a perimeter of `0.0`.
+///
+/// # Examples
+///
+/// ```
+/// use imageproc::contours::{Contour, BorderType};
+/// use imageproc::point::Point;
+/// use image_debug_utils::contours::sort_by_perimeters_owned;
+///
+/// let c1 = Contour {
+///     parent: None,
+///     border_type: BorderType::Outer,
+///     points: vec![Point::new(0,0), Point::new(10,0), Point::new(10,10), Point::new(0,10)]
+/// }; // Perimeter 40.0
+///
+/// let c2 = Contour {
+///     parent: None,
+///     border_type: BorderType::Outer,
+///     points: vec![Point::new(0,0), Point::new(10,0)]
+/// }; // Perimeter 20.0 (10 + 10 back to start)
+///
+/// let contours = vec![c2.clone(), c1.clone()];
+///
+/// let sorted = sort_by_perimeters_owned(contours);
+/// assert_eq!(sorted[0].1, 40.0);
+/// assert_eq!(sorted[1].1, 20.0);
+/// ```
 ///
 pub fn sort_by_perimeters_owned<T>(contours: Vec<Contour<T>>) -> Vec<(Contour<T>, f64)>
 where
@@ -73,6 +104,32 @@ where
 /// * `contours`: A mutable reference to a `Vec<Contour>` to be filtered.
 /// * `max_aspect_ratio`: The maximum allowed aspect ratio. Must be a positive value.
 /// * `border_type`: An `Option<BorderType>` to filter contours by their border type.
+///
+/// # Examples
+///
+/// ```
+/// use imageproc::contours::{Contour, BorderType};
+/// use imageproc::point::Point;
+/// use image_debug_utils::contours::remove_hypotenuse_in_place;
+///
+/// let mut contours = vec![
+///     // Square, aspect ratio 1.0 (keep)
+///     Contour {
+///         parent: None,
+///         border_type: BorderType::Outer,
+///         points: vec![Point::new(0,0), Point::new(10,0), Point::new(10,10), Point::new(0,10)]
+///     },
+///     // Thin strip, high aspect ratio > 5.0 (remove)
+///     Contour {
+///         parent: None,
+///         border_type: BorderType::Outer,
+///         points: vec![Point::new(0,0), Point::new(100,0), Point::new(100,2), Point::new(0,2)]
+///     }
+/// ];
+///
+/// remove_hypotenuse_in_place(&mut contours, 5.0, None);
+/// assert_eq!(contours.len(), 1);
+/// ```
 ///
 /// # Panics
 ///
@@ -142,6 +199,23 @@ pub fn remove_hypotenuse_in_place<T>(
 ///
 /// The time complexity is O(N log N), dominated by the final sort, where N is the number
 /// of contours. The memory overhead is minimal as no deep copies of contour data occur.
+///
+/// # Examples
+///
+/// ```
+/// use imageproc::contours::{Contour, BorderType};
+/// use image_debug_utils::contours::sort_by_direct_children_count_owned;
+///
+/// // Create a hierarchy where index 0 is parent of index 1
+/// let c0: Contour<i32> = Contour { parent: None, border_type: BorderType::Outer, points: vec![] };
+/// let c1: Contour<i32> = Contour { parent: Some(0), border_type: BorderType::Hole, points: vec![] };
+/// let contours = vec![c0, c1];
+///
+/// let sorted = sort_by_direct_children_count_owned(contours);
+/// // c0 (sorted[0]) has 1 child, c1 (sorted[1]) has 0
+/// assert_eq!(sorted[0].1, 1);
+/// assert_eq!(sorted[1].1, 0);
+/// ```
 ///
 /// # Arguments
 ///

@@ -1,3 +1,5 @@
+//! Utilities for geometric primitives and bounding boxes, often used with `imageproc::geometry`.
+
 use image::math::Rect;
 use imageproc::point::Point;
 use num_traits::{Num, ToPrimitive};
