@@ -1,3 +1,5 @@
+//! Utilities for geometric primitives and bounding boxes, often used with `imageproc::geometry`.
+
 use image::math::Rect;
 use imageproc::point::Point;
 use num_traits::{Num, ToPrimitive};
@@ -167,6 +169,32 @@ mod tests {
         let expected = Rect {
             x: 100,
             y: 100,
+            width: 0,
+            height: 0,
+        };
+        assert_eq!(to_axis_aligned_bounding_box(&vertices), expected);
+    }
+
+    #[test]
+    fn test_bounding_box_all_negative() {
+        // All points have negative coordinates.
+        // min_x = -100, max_x = -50, min_y = -80, max_y = -40
+        let vertices = [
+            Point { x: -50.0, y: -40.0 },
+            Point {
+                x: -100.0,
+                y: -40.0,
+            },
+            Point {
+                x: -100.0,
+                y: -80.0,
+            },
+            Point { x: -50.0, y: -80.0 },
+        ];
+        // Everything should become 0.
+        let expected = Rect {
+            x: 0,
+            y: 0,
             width: 0,
             height: 0,
         };

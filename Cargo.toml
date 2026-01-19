@@ -3,6 +3,11 @@ name = "image-debug-utils"
 version = "0.1.0"
 edition = "2024"
 license = "MIT"
+description = "Niche but useful utilities for imageproc, including contour filtering, sorting, and visualization helpers."
+repository = "https://github.com/bioinformatist/image-debug-utils"
+readme = "README.md"
+keywords = ["image", "imageproc", "debugging", "computer-vision", "visualization"]
+categories = ["multimedia::images", "visualization", "development-tools::debugging"]
 [lib]
 path = "src/lib.rs"
 

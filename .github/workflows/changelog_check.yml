@@ -1,0 +1,39 @@
+name: Changelog Check
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - 'src/**'
+      - 'CHANGELOG.md'
+
+jobs:
+  check-changelog:
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.draft == false
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Verify Changelog Update
+        run: |
+          # Get the base branch to compare against
+          BASE_BRANCH="origin/${{ github.base_ref }}"
+          
+          echo "Checking for changes in src/ compared to $BASE_BRANCH..."
+          
+          SRC_CHANGED=$(git diff --name-only $BASE_BRANCH...HEAD | grep "^src/" || true)
+          CHANGELOG_CHANGED=$(git diff --name-only $BASE_BRANCH...HEAD | grep "^CHANGELOG.md$" || true)
+          
+          if [ -n "$SRC_CHANGED" ]; then
+            if [ -z "$CHANGELOG_CHANGED" ]; then
+              echo "❌ Changes detected in 'src/' but 'CHANGELOG.md' was not updated."
+              echo "Please add a summary of your changes to CHANGELOG.md."
+              exit 1
+            else
+              echo "✅ 'src/' changed and 'CHANGELOG.md' was updated."
+            fi
+          else
+            echo "✅ No changes in 'src/', skipping mandatory changelog update check."
+          fi
