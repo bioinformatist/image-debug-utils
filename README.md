@@ -1,5 +1,6 @@
 # image-debug-utils
 
+[![Crates.io](https://img.shields.io/crates/v/image-debug-utils.svg)](https://crates.io/crates/image-debug-utils)
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/bioinformatist/image-debug-utils)
 [![Rust CI](https://github.com/bioinformatist/image-debug-utils/actions/workflows/ci.yml/badge.svg)](https://github.com/bioinformatist/image-debug-utils/actions/workflows/ci.yml)
 [![Build and Deploy to Pages](https://github.com/bioinformatist/image-debug-utils/actions/workflows/pages.yml/badge.svg)](https://github.com/bioinformatist/image-debug-utils/actions/workflows/pages.yml)

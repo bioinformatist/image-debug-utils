@@ -1,7 +1,7 @@
 use iced::widget::{
     Space, button, column, container, image as iced_image, pick_list, row, scrollable, slider, text,
 };
-use iced::{Element, Length, Task, Theme};
+use iced::{Element, Length, Subscription, Task, Theme};
 use image::{DynamicImage, Luma, Rgb, Rgba};
 use image_debug_utils::{
     contours::remove_hypotenuse_in_place, rect::to_axis_aligned_bounding_box,
@@ -16,7 +16,6 @@ use imageproc::{
 
 use lucide_icons::{LUCIDE_FONT_BYTES, iced::icon_github};
 
-#[cfg(target_arch = "wasm32")]
 use web_sys::window;
 
 pub fn main() -> iced::Result {
@@ -24,6 +23,7 @@ pub fn main() -> iced::Result {
         .title(|_state: &Visualizer| "Contour Visualizer".to_string())
         .theme(|_state: &Visualizer| Theme::Dark)
         .font(LUCIDE_FONT_BYTES)
+        .subscription(Visualizer::subscription)
         .run()
 }
 
@@ -36,22 +36,28 @@ impl Visualizer {
 struct Visualizer {
     original_image: Option<DynamicImage>,
 
-    // The "clean" processed image (without selection highlights)
+    /// The "clean" processed image (without selection highlights)
     base_processed_image: Option<DynamicImage>,
 
-    // The currently displayed image handle (may include highlights)
+    /// The currently displayed image handle (may include highlights)
     processed_handle: Option<iced_image::Handle>,
     original_handle: Option<iced_image::Handle>,
 
     current_instance: VisualizerInstance,
     status: String,
 
-    // Data State
-    contours_cache: Vec<Contour<i32>>,   // Preserves hierarchy
-    perimeters_cache: Vec<f64>,          // indexed by master contour index
-    child_counts_cache: Vec<usize>,      // indexed by master contour index
-    sorted_indices: Vec<usize>,          // The filtered and sorted list of indices to display
-    selected_contour_idx: Option<usize>, // Index into contours_cache
+    /// Preserves hierarchy
+    contours_cache: Vec<Contour<i32>>,
+    /// Indexed by master contour index
+    perimeters_cache: Vec<f64>,
+    /// Indexed by master contour index
+    child_counts_cache: Vec<usize>,
+    /// The filtered and sorted list of indices to display
+    sorted_indices: Vec<usize>,
+    /// Index into contours_cache
+    selected_contour_idx: Option<usize>,
+    window_width: f32,
+    window_height: f32,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -151,10 +157,19 @@ enum Message {
     SliderChanged(f32),
     ContourSelected(usize),
     OpenGithub,
+    WindowResized(f32, f32),
 }
 
 impl Default for Visualizer {
     fn default() -> Self {
+        let (width, height) = window()
+            .and_then(|w| {
+                let width = w.inner_width().ok()?.as_f64()? as f32;
+                let height = w.inner_height().ok()?.as_f64()? as f32;
+                Some((width, height))
+            })
+            .unwrap_or((1024.0, 768.0));
+
         Self {
             original_image: None,
             base_processed_image: None,
@@ -167,6 +182,8 @@ impl Default for Visualizer {
             child_counts_cache: Vec::new(),
             sorted_indices: Vec::new(),
             selected_contour_idx: None,
+            window_width: width,
+            window_height: height,
         }
     }
 }
@@ -239,19 +256,30 @@ impl Visualizer {
                 Task::none()
             }
             Message::OpenGithub => {
-                #[cfg(target_arch = "wasm32")]
                 if let Some(window) = window() {
                     let _ = window.open_with_url_and_target(
                         "https://github.com/bioinformatist/image-debug-utils",
                         "_blank",
                     );
                 }
-                #[cfg(not(target_arch = "wasm32"))]
-                println!("Open GitHub: https://github.com/bioinformatist/image-debug-utils");
 
                 Task::none()
             }
+            Message::WindowResized(width, height) => {
+                self.window_width = width;
+                self.window_height = height;
+                Task::none()
+            }
         }
+    }
+
+    fn subscription(&self) -> Subscription<Message> {
+        iced::event::listen_with(|event, _status, _id| match event {
+            iced::Event::Window(iced::window::Event::Resized(size)) => {
+                Some(Message::WindowResized(size.width, size.height))
+            }
+            _ => None,
+        })
     }
 
     /// `full_process`: If true, re-runs the heavy image processing (contours, etc.).
@@ -335,6 +363,39 @@ impl Visualizer {
     }
 
     fn view(&self) -> Element<'_, Message> {
+        let (width, height) = window()
+            .and_then(|w| {
+                let width = w.inner_width().ok()?.as_f64()? as f32;
+                let height = w.inner_height().ok()?.as_f64()? as f32;
+                Some((width, height))
+            })
+            .unwrap_or((self.window_width, self.window_height));
+
+        let is_portrait = width < height;
+        let is_mobile = width < 600.0 || height < 600.0;
+
+        if is_mobile && is_portrait {
+            return container(
+                column![
+                    text("Please rotate your device").size(30),
+                    text("This demo works best in landscape mode").size(18),
+                ]
+                .spacing(20)
+                .align_x(iced::Alignment::Center),
+            )
+            .width(Length::Fill)
+            .height(Length::Fill)
+            .center_x(Length::Fill)
+            .center_y(Length::Fill)
+            .into();
+        }
+
+        let (padding, spacing, header_font_size, status_font_size) = if is_mobile {
+            (2.0, 5.0, 14, 10)
+        } else {
+            (20.0, 20.0, 24, 14)
+        };
+
         let mut controls = row![
             button("Random Image").on_press(Message::LoadRandomImage),
             pick_list(
@@ -343,71 +404,192 @@ impl Visualizer {
                 Message::ModeSelected
             ),
         ]
-        .spacing(20)
+        .spacing(spacing)
         .align_y(iced::Alignment::Center);
 
         // Dynamic controls based on instance
         match self.current_instance {
             VisualizerInstance::FilterContours { max_aspect_ratio } => {
-                controls =
-                    controls.push(text(format!("Max Aspect Ratio: {:.1}", max_aspect_ratio)));
+                let label = if is_mobile { "AR" } else { "Max Aspect Ratio" };
+                controls = controls.push(
+                    text(format!("{}: {:.1}", label, max_aspect_ratio)).size(status_font_size),
+                );
                 controls = controls.push(
                     slider(1.0..=20.0, max_aspect_ratio, Message::SliderChanged)
                         .step(0.1)
-                        .width(Length::Fixed(200.0)),
+                        .width(if is_mobile {
+                            Length::Fixed(80.0)
+                        } else {
+                            Length::Fixed(200.0)
+                        }),
                 );
             }
             VisualizerInstance::ConnectedComponents { n } => {
-                controls = controls.push(text(format!("Top N Components: {}", n)));
+                let label = if is_mobile { "N" } else { "Top N Components" };
+                controls = controls.push(text(format!("{}: {}", label, n)).size(status_font_size));
                 controls = controls.push(
                     slider(1.0..=20.0, n as f32, Message::SliderChanged)
                         .step(1.0)
-                        .width(Length::Fixed(200.0)),
+                        .width(if is_mobile {
+                            Length::Fixed(80.0)
+                        } else {
+                            Length::Fixed(200.0)
+                        }),
                 );
             }
             VisualizerInstance::SortPerimeter { min_perimeter } => {
-                controls = controls.push(text(format!("Min Perimeter: {:.1}", min_perimeter)));
+                let label = if is_mobile { "P" } else { "Min Perimeter" };
+                controls = controls
+                    .push(text(format!("{}: {:.0}", label, min_perimeter)).size(status_font_size));
                 controls = controls.push(
                     slider(0.0..=500.0, min_perimeter, Message::SliderChanged)
                         .step(10.0)
-                        .width(Length::Fixed(200.0)),
+                        .width(if is_mobile {
+                            Length::Fixed(80.0)
+                        } else {
+                            Length::Fixed(200.0)
+                        }),
                 );
             }
             _ => {}
         }
 
-        let status_bar = text(&self.status).size(14);
+        let status_bar = text(&self.status).size(status_font_size);
 
-        let header = row![
-            text("Image Debug Utils Visualizer").size(24),
-            Space::new().width(Length::Fill),
-            button(
-                container(icon_github().size(16))
-                    .width(Length::Fill)
-                    .height(Length::Fill)
-                    .center_x(Length::Fill)
-                    .center_y(Length::Fill)
-                    .style(|theme| {
-                        container::Style::default().border(iced::Border {
-                            color: theme.palette().text,
-                            width: 1.0,
-                            radius: 6.0.into(),
+        let content = if is_mobile {
+            // Single row layout for landscape to maximize vertical space
+            let mut top_row = row![
+                text("Viz").size(header_font_size),
+                Space::new().width(Length::Fixed(spacing)),
+                status_bar,
+                Space::new().width(Length::Fill),
+            ]
+            .spacing(spacing)
+            .align_y(iced::Alignment::Center)
+            .width(Length::Fill);
+
+            // Add basic controls
+            top_row = top_row.push(
+                row![
+                    button("Random")
+                        .on_press(Message::LoadRandomImage)
+                        .padding(2),
+                    pick_list(
+                        &VisualizerMode::ALL[..],
+                        Some(self.current_instance.mode()),
+                        Message::ModeSelected
+                    ),
+                ]
+                .spacing(spacing)
+                .align_y(iced::Alignment::Center),
+            );
+
+            // Add dynamic controls (sliders)
+            match self.current_instance {
+                VisualizerInstance::FilterContours { max_aspect_ratio } => {
+                    top_row = top_row.push(
+                        row![
+                            text(format!("AR:{:.1}", max_aspect_ratio)).size(status_font_size),
+                            slider(1.0..=20.0, max_aspect_ratio, Message::SliderChanged)
+                                .step(0.1)
+                                .width(Length::Fixed(60.0)),
+                        ]
+                        .spacing(2)
+                        .align_y(iced::Alignment::Center),
+                    );
+                }
+                VisualizerInstance::ConnectedComponents { n } => {
+                    top_row = top_row.push(
+                        row![
+                            text(format!("N:{}", n)).size(status_font_size),
+                            slider(1.0..=20.0, n as f32, Message::SliderChanged)
+                                .step(1.0)
+                                .width(Length::Fixed(60.0)),
+                        ]
+                        .spacing(2)
+                        .align_y(iced::Alignment::Center),
+                    );
+                }
+                VisualizerInstance::SortPerimeter { min_perimeter } => {
+                    top_row = top_row.push(
+                        row![
+                            text(format!("P:{:.0}", min_perimeter)).size(status_font_size),
+                            slider(0.0..=500.0, min_perimeter, Message::SliderChanged)
+                                .step(10.0)
+                                .width(Length::Fixed(60.0)),
+                        ]
+                        .spacing(2)
+                        .align_y(iced::Alignment::Center),
+                    );
+                }
+                _ => {}
+            }
+
+            top_row = top_row.push(
+                button(
+                    container(icon_github().size(12))
+                        .width(Length::Fill)
+                        .height(Length::Fill)
+                        .center_x(Length::Fill)
+                        .center_y(Length::Fill)
+                        .style(|theme| {
+                            container::Style::default().border(iced::Border {
+                                color: theme.palette().text,
+                                width: 1.0,
+                                radius: 4.0.into(),
+                            })
+                        }),
+                )
+                .on_press(Message::OpenGithub)
+                .padding(0)
+                .width(Length::Fixed(18.0))
+                .height(Length::Fixed(18.0))
+                .style(button::text),
+            );
+
+            column![top_row]
+                .spacing(spacing)
+                .padding(padding)
+                .width(Length::Fill)
+        } else {
+            // Standard multi-row layout for portrait/desktop
+            let header = row![
+                text(if is_mobile {
+                    "Visualizer"
+                } else {
+                    "Image Debug Utils Visualizer"
+                })
+                .size(header_font_size),
+                Space::new().width(Length::Fill),
+                button(
+                    container(icon_github().size(if is_mobile { 16 } else { 20 }))
+                        .width(Length::Fill)
+                        .height(Length::Fill)
+                        .center_x(Length::Fill)
+                        .center_y(Length::Fill)
+                        .style(|theme| {
+                            container::Style::default().border(iced::Border {
+                                color: theme.palette().text,
+                                width: 1.0,
+                                radius: 6.0.into(),
+                            })
                         })
-                    })
-                    .padding(0)
-            )
-            .on_press(Message::OpenGithub)
-            .padding(0)
-            .width(Length::Fixed(24.0))
-            .height(Length::Fixed(24.0))
-            .style(button::text)
-        ]
-        .align_y(iced::Alignment::Center)
-        .width(Length::Fill);
+                        .padding(0)
+                )
+                .on_press(Message::OpenGithub)
+                .padding(0)
+                .width(Length::Fixed(24.0))
+                .height(Length::Fixed(24.0))
+                .style(button::text)
+            ]
+            .align_y(iced::Alignment::Center)
+            .width(Length::Fill);
 
-        let content = column![header, controls, status_bar]
-            .spacing(20)
-            .padding(20);
+            column![header, controls, status_bar]
+                .spacing(spacing)
+                .padding(padding)
+                .width(Length::Fill)
+        };
 
         let main_view: Element<'_, Message> = match self.current_instance {
             VisualizerInstance::SortPerimeter { .. } | VisualizerInstance::SortChildren => {
@@ -415,23 +597,33 @@ impl Visualizer {
             }
             _ => {
                 // Default Layout
-                row![
-                    column![
-                        text("Original").size(16),
-                        image_display(&self.original_handle)
-                    ]
-                    .spacing(10)
-                    .width(Length::FillPortion(1)),
-                    column![
-                        text("Processed").size(16),
+                if is_mobile {
+                    row![
+                        image_display(&self.original_handle),
                         image_display(&self.processed_handle)
                     ]
-                    .spacing(10)
-                    .width(Length::FillPortion(1))
-                ]
-                .spacing(20)
-                .height(Length::Fill)
-                .into()
+                    .spacing(spacing)
+                    .height(Length::Fill)
+                    .into()
+                } else {
+                    row![
+                        column![
+                            text("Original").size(16),
+                            image_display(&self.original_handle)
+                        ]
+                        .spacing(10)
+                        .width(Length::FillPortion(1)),
+                        column![
+                            text("Processed").size(16),
+                            image_display(&self.processed_handle)
+                        ]
+                        .spacing(10)
+                        .width(Length::FillPortion(1))
+                    ]
+                    .spacing(spacing)
+                    .height(Length::Fill)
+                    .into()
+                }
             }
         };
 
@@ -448,6 +640,9 @@ impl Visualizer {
     }
 
     fn view_list_layout(&self) -> Element<'_, Message> {
+        let is_mobile = self.window_width < 600.0 || self.window_height < 600.0;
+        let spacing = if is_mobile { 5.0 } else { 10.0 };
+
         // Image Area
         let image_area: Element<'_, Message> = if let Some(handle) = &self.processed_handle {
             iced_image::viewer(handle.clone())
@@ -517,8 +712,8 @@ impl Visualizer {
                     radius: 0.0.into()
                 }))
         ]
-        .spacing(10)
-        .padding(10)
+        .spacing(spacing)
+        .padding(spacing)
         .into()
     }
 }
@@ -730,7 +925,11 @@ fn process_image(img: &DynamicImage, instance: VisualizerInstance) -> ProcessedR
             // Filter
             indices.retain(|&i| perimeters[i] >= min_perimeter as f64);
             // Sort
-            indices.sort_by(|&a, &b| perimeters[b].partial_cmp(&perimeters[a]).unwrap());
+            indices.sort_by(|&a, &b| {
+                perimeters[b]
+                    .partial_cmp(&perimeters[a])
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            });
 
             let mut canvas = img.to_rgb8();
             // Dim base drawing for filtered ones?
