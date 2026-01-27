@@ -285,16 +285,14 @@ impl Visualizer {
     /// `full_process`: If true, re-runs the heavy image processing (contours, etc.).
     /// If false, just redraws the highlights on the existing `base_processed_image`.
     fn process_and_update(&mut self, full_process: bool) {
-        if full_process {
-            if let Some(img) = &self.original_image {
-                let res = process_image(img, self.current_instance);
-                self.base_processed_image = Some(res.image);
-                self.contours_cache = res.contours;
-                self.perimeters_cache = res.perimeters;
-                self.child_counts_cache = res.child_counts;
-                self.sorted_indices = res.sorted_indices;
-                self.selected_contour_idx = None;
-            }
+        if full_process && let Some(img) = &self.original_image {
+            let res = process_image(img, self.current_instance);
+            self.base_processed_image = Some(res.image);
+            self.contours_cache = res.contours;
+            self.perimeters_cache = res.perimeters;
+            self.child_counts_cache = res.child_counts;
+            self.sorted_indices = res.sorted_indices;
+            self.selected_contour_idx = None;
         }
 
         // Now generate the display handle, potentially burning in selection
@@ -964,10 +962,10 @@ fn process_image(img: &DynamicImage, instance: VisualizerInstance) -> ProcessedR
             // Calculate child counts
             let mut counts = vec![0; contours.len()];
             for c in &contours {
-                if let Some(parent) = c.parent {
-                    if let Some(cnt) = counts.get_mut(parent) {
-                        *cnt += 1;
-                    }
+                if let Some(parent) = c.parent
+                    && let Some(cnt) = counts.get_mut(parent)
+                {
+                    *cnt += 1;
                 }
             }
 

@@ -21,19 +21,27 @@ jobs:
       - uses: actions/checkout@v4
       
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@master
         with:
+          toolchain: nightly-2026-01-27
           targets: wasm32-unknown-unknown
+          components: rust-src
 
       - name: Rust Cache
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: "examples/visualizer"
 
-      - name: Install Trunk
+      - name: Install Trunk & wasm-opt
         uses: jetli/trunk-action@v0.5.0
         with:
           version: 'latest'
+
+      - name: Install binaryen (wasm-opt)
+        run: |
+          wget https://github.com/WebAssembly/binaryen/releases/download/version_116/binaryen-version_116-x86_64-linux.tar.gz
+          tar -xzf binaryen-version_116-x86_64-linux.tar.gz
+          echo "$(pwd)/binaryen-version_116/bin" >> $GITHUB_PATH
 
       - name: Build WASM
         # Build the 'visualizer' example using the index.html we created

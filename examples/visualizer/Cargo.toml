@@ -1,3 +1,5 @@
+cargo-features = ["panic-immediate-abort"]
+
 [package]
 name = "visualizer"
 version = "0.1.0"
@@ -7,7 +9,7 @@ edition = "2024"
 image-debug-utils = { path = "../../" }
 iced = { version = "0.14.0", features = ["image", "webgl", "fira-sans", "canvas", "svg"] }
 reqwest = { version = "0.13.1", features = ["json"] }
-image = "0.25"
+image = { version = "0.25", default-features = false, features = ["jpeg", "png", "bmp", "tiff", "rayon"] }
 imageproc = "0.26"
 
 # We need these for wasm build usually
@@ -22,3 +24,18 @@ lucide-icons = { version = "0.562.0", features = ["iced"] }
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 reqwest = { version = "0.13.1", features = ["blocking", "json"] }
 tokio = { version = "1.49.0", features = ["full"] }
+
+[profile.dev]
+opt-level = 1
+incremental = true
+panic = "immediate-abort"
+
+[profile.dev.package."*"]
+opt-level = 3
+
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1
+panic = "immediate-abort"
+strip = true

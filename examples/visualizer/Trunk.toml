@@ -1,3 +1,12 @@
 [build]
 target = "index.html"
 dist = "dist"
+
+[[hooks]]
+stage = "post_build"
+command = "sh"
+command_arguments = [
+    "-c",
+    "f=$(find \"$TRUNK_STAGING_DIR\" -name \"*.wasm\" | head -n 1); WASM_OPT=$(which wasm-opt || ls $HOME/.cache/trunk/wasm-opt-*/bin/wasm-opt 2>/dev/null | head -n 1); [ -n \"$f\" ] && [ -x \"$WASM_OPT\" ] && \"$WASM_OPT\" -Oz --enable-bulk-memory --enable-nontrapping-float-to-int \"$f\" -o \"$f\""
+]
+

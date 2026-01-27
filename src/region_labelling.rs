@@ -42,7 +42,7 @@ pub fn draw_principal_connected_components(
     }
 
     let mut sorted_counts: Vec<_> = counts.into_iter().collect();
-    sorted_counts.sort_by(|a, b| b.1.cmp(&a.1));
+    sorted_counts.sort_by_key(|b| std::cmp::Reverse(b.1));
 
     let principal_labels: Vec<u32> = sorted_counts
         .iter()
