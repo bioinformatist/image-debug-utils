@@ -1,5 +1,5 @@
 use image::{DynamicImage, Luma};
-use image_debug_utils::contours::remove_hypotenuse_in_place;
+use image_debug_utils::contours::remove_hypotenuse_owned;
 use imageproc::{
     contours::{Contour, find_contours},
     drawing::draw_line_segment_mut,
@@ -47,8 +47,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // 5. Process: Remove Hypotenuse
     // Filter out artifacts with high aspect ratio (e.g. thin lines, noise)
     // Using a lower threshold (2.0) makes it more sensitive/aggressive.
-    let mut contours_after = contours_before.clone();
-    remove_hypotenuse_in_place(&mut contours_after, 2.0, None);
+    let contours_after = remove_hypotenuse_owned(contours_before.clone(), 2.0, None);
     println!("Contours after: {}", contours_after.len());
 
     // 6. Visualize After

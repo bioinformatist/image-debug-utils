@@ -189,6 +189,33 @@ pub fn remove_hypotenuse_in_place<T>(
     });
 }
 
+/// Filters a vector of contours based on shape properties by consuming the input.
+///
+/// This is the non-in-place version of [`remove_hypotenuse_in_place`]. It takes ownership
+/// of the input vector and returns a new vector containing only the contours that meet
+/// the criteria.
+///
+/// # Arguments
+///
+/// * `contours`: A `Vec<Contour<T>>` to be filtered.
+/// * `max_aspect_ratio`: The maximum allowed aspect ratio. Must be a positive value.
+/// * `border_type`: An `Option<BorderType>` to filter contours by their border type.
+///
+/// # Returns
+///
+/// A `Vec<Contour<T>>` containing the filtered contours.
+pub fn remove_hypotenuse_owned<T>(
+    mut contours: Vec<Contour<T>>,
+    max_aspect_ratio: f32,
+    border_type: Option<BorderType>,
+) -> Vec<Contour<T>>
+where
+    T: Num + NumCast + Copy + PartialEq + Eq + Ord + AsPrimitive<f32>,
+{
+    remove_hypotenuse_in_place(&mut contours, max_aspect_ratio, border_type);
+    contours
+}
+
 /// Counts the number of direct child contours for each contour by consuming the input vector,
 /// and returns pairs of `(Contour, count)`, sorted by the count in descending order.
 ///
@@ -387,6 +414,59 @@ mod tests {
         let mut contours6 = vec![degenerate_contour_4pts];
         remove_hypotenuse_in_place(&mut contours6, 5.0, None);
         assert!(contours6.is_empty(), "0-area contour should be removed");
+    }
+
+    #[test]
+    #[should_panic(expected = "max_aspect_ratio must be a positive finite number")]
+    fn test_remove_hypotenuse_panic() {
+        let mut contours: Vec<Contour<i32>> = Vec::new();
+        remove_hypotenuse_in_place(&mut contours, -1.0, None);
+    }
+
+    #[test]
+    fn test_remove_hypotenuse_owned() {
+        let good_contour = Contour {
+            points: vec![
+                Point::new(10, 10),
+                Point::new(20, 10),
+                Point::new(20, 20),
+                Point::new(10, 20),
+            ],
+            border_type: BorderType::Outer,
+            parent: None,
+        };
+        let bad_contour = Contour {
+            points: vec![
+                Point::new(0, 0),
+                Point::new(100, 0),
+                Point::new(100, 10),
+                Point::new(0, 10),
+            ],
+            border_type: BorderType::Outer,
+            parent: None,
+        };
+
+        let contours = vec![good_contour.clone(), bad_contour.clone()];
+        let filtered = remove_hypotenuse_owned(contours, 5.0, None);
+
+        assert_eq!(filtered.len(), 1);
+        assert_eq!(filtered[0].points, good_contour.points);
+
+        // Test with border type filter
+        let hole_contour = Contour {
+            points: vec![
+                Point::new(10, 10),
+                Point::new(15, 10),
+                Point::new(15, 15),
+                Point::new(10, 15),
+            ],
+            border_type: BorderType::Hole,
+            parent: None,
+        };
+        let contours = vec![good_contour.clone(), hole_contour.clone()];
+        let filtered = remove_hypotenuse_owned(contours, 100.0, Some(BorderType::Outer));
+        assert_eq!(filtered.len(), 1);
+        assert_eq!(filtered[0].border_type, BorderType::Outer);
     }
 
     #[test]

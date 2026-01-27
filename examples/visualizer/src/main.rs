@@ -4,7 +4,7 @@ use iced::widget::{
 use iced::{Element, Length, Subscription, Task, Theme};
 use image::{DynamicImage, Luma, Rgb, Rgba};
 use image_debug_utils::{
-    contours::remove_hypotenuse_in_place, rect::to_axis_aligned_bounding_box,
+    contours::remove_hypotenuse_owned, rect::to_axis_aligned_bounding_box,
     region_labelling::draw_principal_connected_components,
 };
 use imageproc::{
@@ -782,8 +782,7 @@ fn process_image(img: &DynamicImage, instance: VisualizerInstance) -> ProcessedR
     match instance {
         VisualizerInstance::FilterContours { max_aspect_ratio } => {
             let contours = find_contours::<i32>(&binary);
-            let mut filtered_contours = contours.clone();
-            remove_hypotenuse_in_place(&mut filtered_contours, max_aspect_ratio, None);
+            let filtered_contours = remove_hypotenuse_owned(contours, max_aspect_ratio, None);
 
             let mut canvas = img.to_rgb8();
             let color = Rgb([0, 255, 0]); // Green

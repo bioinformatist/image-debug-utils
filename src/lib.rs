@@ -19,13 +19,11 @@
 //! ```rust
 //! use imageproc::contours::Contour;
 //! use imageproc::contours::BorderType;
-//! use image_debug_utils::contours::{remove_hypotenuse_in_place, sort_by_perimeters_owned};
-//! let mut contours: Vec<Contour<i32>> = Vec::new(); // Dummy data
-//! // 1. Remove thin, "hypotenuse-like" artifacts from contours
-//! remove_hypotenuse_in_place(&mut contours, 5.0, None);
+//! use image_debug_utils::contours::{remove_hypotenuse_owned, sort_by_perimeters_owned};
+//! let contours: Vec<Contour<i32>> = Vec::new(); // Dummy data
 //!
-//! // 2. Sort remaining contours by their perimeter (descending)
-//! let sorted = sort_by_perimeters_owned(contours);
+//! // Remove thin, "hypotenuse-like" artifacts and sort by perimeter
+//! let sorted = sort_by_perimeters_owned(remove_hypotenuse_owned(contours, 5.0, None));
 //! ```
 //!
 //! # Example: Visualizing Connected Components
